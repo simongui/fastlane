@@ -4,7 +4,7 @@
 Fastlane is a caching transport that takes changes from a MySQL database and applies them to an in-memory cache like `memcached` or `redis`. Fastlane is unique because it replicates off of a MySQL database just like a normal MySQL replica does. This allows fastlane to be transactionally aware and sequentially consistent.
 
 # Why fastlane?
-Many of todays web services written in node.js, rails or any other language store hot data in in-memory caching services like `memcached` or `redis` for performance to reduce load on databases. Some of the challenges in this caching approach are as follows.
+Many of todays web services written in node.js, rails or any other language store hot data in in-memory caching services like `memcached` or `redis` for performance to reduce load on databases. Some of the challenges in this caching approach are the following.
 
 1. Keeping cached values up to date (cache invalidation).
 1. Not losing updates between the database (`MySQL`, `MSSQL`, `Oracle`, `Postgres`) and the caching service (`memcached`, `redis`, etc).
