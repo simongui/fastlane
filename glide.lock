@@ -1,0 +1,6 @@
+hash: 73b67b16e1b08d27c57968eae309d4570fb17701cd5b04631f697b5fc27a1030
+updated: 2016-08-08T13:44:07.016715184-04:00
+imports:
+- name: github.com/2tvenom/myreplication
+  version: 121f810367d169ec10a1cb385e7dea4ea5493091
+testImports: []

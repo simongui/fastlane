@@ -1,0 +1,3 @@
+package: github.com/simongui/fastlane
+import:
+- package: github.com/2tvenom/myreplication
