@@ -1,5 +1,5 @@
-hash: 211a2a0d0c7be235e70f04c900e7ce02dd2a0c156820da1aa21ff6394a1b36fd
-updated: 2016-08-09T00:24:47.061755337-04:00
+hash: 8db61edadda3e945a20144f05a5f23e860ac17a9b2d2f6521586d4bf891e6ebc
+updated: 2016-08-10T01:17:06.320527939-04:00
 imports:
 - name: github.com/2tvenom/myreplication
   version: 121f810367d169ec10a1cb385e7dea4ea5493091
@@ -7,6 +7,15 @@ imports:
   version: c286dcecd19ff979eeb73ea444e479b903f2cfcb
 - name: github.com/rifflock/lfshook
   version: f9d14dda07b109a7aa56f135c31b34062eb14392
+- name: github.com/robertkrimen/otto
+  version: 7d9cbc2befca39869eb0e5bcb0f44c0692c2f8ff
+  subpackages:
+  - ast
+  - dbg
+  - file
+  - parser
+  - registry
+  - token
 - name: github.com/Sirupsen/logrus
   version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
 - name: github.com/x-cray/logrus-prefixed-formatter
@@ -15,4 +24,8 @@ imports:
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
+- name: gopkg.in/sourcemap.v1
+  version: 8cd1e2e0ddc78dcb4511bcb184d23171bed15c67
+  subpackages:
+  - base64vlq
 testImports: []
