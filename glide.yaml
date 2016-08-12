@@ -10,3 +10,5 @@ import:
 - package: github.com/robertkrimen/otto
 - package: gopkg.in/sourcemap.v1
   version: ~1.0.2
+- package: github.com/paulbellamy/ratecounter
+  version: ~0.1.0
