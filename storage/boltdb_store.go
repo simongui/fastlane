@@ -10,13 +10,14 @@ import (
 )
 
 var systemBucketName = []byte("system")
+var dataBucketName = []byte("data")
 var binlogFileKey = []byte("binlogfile")
 var binlogPositionKey = []byte("binlogpos")
 
 // BoltDBStore Represents an instance of the BoltDB storage.
 type BoltDBStore struct {
-	db           *bolt.DB
-	systemBucket *bolt.Bucket
+	db *bolt.DB
+	tx *bolt.Tx
 }
 
 // BinlogInformation Represents the information about the MySQL binlog.
@@ -30,19 +31,32 @@ func (store *BoltDBStore) Open(filename string) error {
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
 	var err error
-	store.db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	store.db, err = bolt.Open(filename, 0600, &bolt.Options{
+		Timeout: 1 * time.Second,
+		// InitialMmapSize: 1000000000,
+	})
 	if err != nil {
 		return err
 	}
 
 	// Ensure system bucket is created.
 	store.db.Update(func(tx *bolt.Tx) error {
-		store.systemBucket, err = tx.CreateBucketIfNotExists(systemBucketName)
+		_, err = tx.CreateBucketIfNotExists(systemBucketName)
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		_, err = tx.CreateBucketIfNotExists(dataBucketName)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 		return nil
 	})
+
+	// Start a writable transaction.
+	store.tx, err = store.db.Begin(true)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -95,9 +109,51 @@ func (store *BoltDBStore) SetBinlogPosition(binlogInfo *BinlogInformation) error
 		return nil
 	})
 
+	// Commit the transaction and check for error.
+	if err = store.tx.Commit(); err != nil {
+		return err
+	}
 	err = store.db.Sync()
 	if err != nil {
 		return err
 	}
+	// Start a writable transaction.
+	store.tx, err = store.db.Begin(true)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+// Get Gets the value associated with the specified key.
+func (store *BoltDBStore) Get(key []byte) ([]byte, error) {
+	var value []byte
+
+	err := store.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(dataBucketName)
+		value = bucket.Get(key)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+// Set Sets the specified value associated with the specified key.
+func (store *BoltDBStore) Set(key []byte, value []byte) error {
+	// store.db.Update(func(tx *bolt.Tx) error {
+	// err := store.db.Batch(func(tx *bolt.Tx) error {
+	bucket := store.tx.Bucket(dataBucketName)
+	err := bucket.Put(key, value)
+	if err != nil {
+		return err
+	}
+	return nil
+	// })
+
+	// if err != nil {
+	// 	return err
+	// }
+	// return nil
 }
