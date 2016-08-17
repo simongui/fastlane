@@ -61,7 +61,7 @@ func (service *Service) startStorage(filename string) {
 	}
 	logrus.WithFields(logrus.Fields{
 		"prefix": fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-	}).Info("openened fastlane.db")
+	}).Info("opened fastlane.db")
 }
 
 func (service *Service) startJavascriptRuntime() {

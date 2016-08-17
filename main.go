@@ -53,6 +53,8 @@ func main() {
 	// 	}
 	// }()
 
+	kingpin.Parse()
+
 	logrus.SetFormatter(new(prefixed.TextFormatter))
 
 	logrus.StandardLogger().Hooks.Add(lfshook.NewHook(lfshook.PathMap{
@@ -67,8 +69,6 @@ func main() {
 	logrus.WithFields(logrus.Fields{
 		"prefix": fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
 	}).Info("process started")
-
-	kingpin.Parse()
 
 	go func() {
 		startTicker()
