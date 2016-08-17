@@ -41,23 +41,28 @@ func (server *RedisServer) ListenAndServe(address string) {
 						conn.WriteError("ERR wrong number of arguments for '" + args[0] + "' command")
 						continue
 					}
-					mu.Lock()
-					items[args[1]] = args[2]
-					mu.Unlock()
+
+					// mu.Lock()
+					// items[args[1]] = args[2]
+					// mu.Unlock()
+					go server.store.Set([]byte(args[1]), []byte(args[2]))
 					conn.WriteString("OK")
 				case "get":
 					if len(args) != 2 {
 						conn.WriteError("ERR wrong number of arguments for '" + args[0] + "' command")
 						continue
 					}
-					mu.RLock()
-					val, ok := items[args[1]]
-					mu.RUnlock()
-					if !ok {
+					// mu.RLock()
+					// val, ok := items[args[1]]
+					// mu.RUnlock()
+					// go func(con redcon.Conn) {
+					val, err := server.store.Get([]byte(args[1]))
+					if err != nil {
 						conn.WriteNull()
 					} else {
-						conn.WriteBulk(val)
+						conn.WriteBulk(string(val))
 					}
+					// }(conn)
 				case "del":
 					if len(args) != 2 {
 						conn.WriteError("ERR wrong number of arguments for '" + args[0] + "' command")
