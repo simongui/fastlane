@@ -5,6 +5,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -15,11 +16,12 @@ import (
 )
 
 var (
-	host     = "db1.us-east-1.com"
-	port     = 33301
-	username = "repl_user"
-	password = "password"
-	service  *Service
+	host      = "db1.us-east-1.com"
+	port      = 33301
+	username  = "repl_user"
+	password  = "password"
+	service   *Service
+	waitGroup sync.WaitGroup
 )
 
 // CallInfo Represents caller information.
@@ -70,12 +72,15 @@ func main() {
 		"prefix": fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
 	}).Info("process started")
 
+	service = &Service{}
+	go service.ListenAndServe("fastlane.db", 9999, *httpListenAddress, *redisListenAddress)
+
 	go func() {
 		startTicker()
 	}()
 
-	service = &Service{}
-	service.ListenAndServe("fastlane.db", 9999, *httpListenAddress, *redisListenAddress)
+	waitGroup.Add(1)
+	waitGroup.Wait()
 }
 
 func startTicker() {
@@ -86,6 +91,7 @@ func startTicker() {
 		}).Info(counter.Rate())
 
 		service.replicator.SaveBinlogPosition()
+		service.replicator.store.Commit()
 	}
 }
 
