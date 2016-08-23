@@ -11,7 +11,8 @@ import (
 
 // RedisServer Represents an instance of a redis protocol server.
 type RedisServer struct {
-	store *storage.BoltDBStore
+	started bool
+	store   *storage.BoltDBStore
 }
 
 // NewRedisServer Returns a new RedisServer instance.
@@ -20,13 +21,21 @@ func NewRedisServer(store *storage.BoltDBStore) *RedisServer {
 	return server
 }
 
+// IsStarted Returns whether the Redis protocol server is started.
+func (server *RedisServer) IsStarted() bool {
+	return server.started
+}
+
 // ListenAndServe Starts the Redis protocol server.
 func (server *RedisServer) ListenAndServe(address string) {
 	var mu sync.RWMutex
 	var items = make(map[string]string)
 
+	server.started = true
+
 	err := redcon.ListenAndServe(address,
 		func(conn redcon.Conn, commands [][]string) {
+
 			for _, args := range commands {
 				switch strings.ToLower(args[0]) {
 				default:
@@ -91,6 +100,7 @@ func (server *RedisServer) ListenAndServe(address string) {
 		},
 	)
 	if err != nil {
+		server.started = false
 		log.Fatal(err)
 	}
 }
