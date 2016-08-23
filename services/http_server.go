@@ -10,7 +10,8 @@ import (
 
 // HTTPServer Represents an instance of the HTTP protocol server.
 type HTTPServer struct {
-	store *storage.BoltDBStore
+	started bool
+	store   *storage.BoltDBStore
 }
 
 // NewHTTPServer Returns a new HTTPServer instance.
@@ -19,12 +20,19 @@ func NewHTTPServer(store *storage.BoltDBStore) *HTTPServer {
 	return server
 }
 
+// IsStarted Returns whether the HTTP protocol server is started.
+func (server *HTTPServer) IsStarted() bool {
+	return server.started
+}
+
 // ListenAndServe Starts the HTTP protocol server.
 func (server *HTTPServer) ListenAndServe(address string) {
 	h := requestHandler
 	// h = fasthttp.CompressHandler(h)
 
+	server.started = true
 	if err := fasthttp.ListenAndServe(address, h); err != nil {
+		server.started = false
 		log.Fatalf("Error in ListenAndServe: %s", err)
 	}
 }
