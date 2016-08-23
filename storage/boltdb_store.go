@@ -16,6 +16,7 @@ var binlogPositionKey = []byte("binlogpos")
 
 // BoltDBStore Represents an instance of the BoltDB storage.
 type BoltDBStore struct {
+	started          bool
 	db               *bolt.DB
 	tx               *bolt.Tx
 	writes           chan keyvaluepair
@@ -33,6 +34,11 @@ type keyvaluepair struct {
 	bucket []byte
 	key    []byte
 	value  []byte
+}
+
+// IsStarted Returns whether the BoltDB store is started.
+func (store *BoltDBStore) IsStarted() bool {
+	return store.started
 }
 
 // Open Opens the disk storage.
@@ -64,6 +70,7 @@ func (store *BoltDBStore) Open(filename string) error {
 	})
 
 	go store.handleWrites()
+	store.started = true
 	return nil
 }
 
@@ -107,9 +114,9 @@ func (store *BoltDBStore) SetBinlogPosition(binlogInfo *BinlogInformation) error
 		key:    fileBuffer,
 		value:  positionBuffer,
 	}
-	fmt.Println("SET START")
+	// fmt.Println("SET START")
 	store.writes <- write
-	fmt.Println("SET END")
+	// fmt.Println("SET END")
 	// store.db.Update(func(tx *bolt.Tx) error {
 	// 	bucket := tx.Bucket(systemBucketName)
 	// 	err = bucket.Put([]byte(binlogFileKey), fileBuffer)
@@ -201,50 +208,44 @@ func (store *BoltDBStore) Set(key []byte, value []byte) error {
 }
 
 func (store *BoltDBStore) handleWrites() {
-	var err error
+	for {
+		var err error
 
-	write := <-store.writes
+		write := <-store.writes
 
-	fmt.Println("HIT handleWrites !!!!!!!!!!!!!!!!!!!")
-	if store.tx == nil {
-		// Start a writable transaction.
-		store.tx, err = store.db.Begin(true)
+		if store.tx == nil {
+			// Start a writable transaction.
+			store.tx, err = store.db.Begin(true)
+			if err != nil {
+				// return err
+			}
+		} else if store.tx != nil && store.resetTransaction == true {
+			if err = store.tx.Commit(); err != nil {
+				// return err
+			}
+
+			// Start a writable transaction.
+			store.tx, err = store.db.Begin(true)
+			if err != nil {
+				// return err
+			}
+
+			store.resetTransaction = false
+
+			err = store.db.Sync()
+			if err != nil {
+				// return err
+			}
+		}
+
+		// fmt.Printf("%s\t%s\t%d\n", string(write.bucket), string(write.key), binary.LittleEndian.Uint32(write.value))
+
+		bucket := store.tx.Bucket(write.bucket)
+		err = bucket.Put(write.key, write.value)
 		if err != nil {
 			// return err
-			fmt.Println("HIT 1 !!!!!!!!!!!!!!!!!!!")
-		}
-	} else if store.tx != nil && store.resetTransaction == true {
-		fmt.Println("HIT COMMIT !!!!!!!!!!!!!!!!!!!")
-		if err = store.tx.Commit(); err != nil {
-			// return err
-			fmt.Println("HIT 2 !!!!!!!!!!!!!!!!!!!")
-		}
-
-		// Start a writable transaction.
-		store.tx, err = store.db.Begin(true)
-		if err != nil {
-			// return err
-			fmt.Println("HIT 3 !!!!!!!!!!!!!!!!!!!")
-		}
-
-		fmt.Println("HIT 4 !!!!!!!!!!!!!!!!!!!")
-		store.resetTransaction = false
-
-		err = store.db.Sync()
-		if err != nil {
-			// return err
-			fmt.Println("HIT 5 !!!!!!!!!!!!!!!!!!!")
 		}
 	}
-
-	fmt.Println("HIT 6 !!!!!!!!!!!!!!!!!!!")
-	bucket := store.tx.Bucket(write.bucket)
-	err = bucket.Put(write.key, write.value)
-	if err != nil {
-		// return err
-		fmt.Println("HIT 7 !!!!!!!!!!!!!!!!!!!")
-	}
-	fmt.Println("HIT 8 !!!!!!!!!!!!!!!!!!!")
 }
 
 // Commit Commits the current transaction.
