@@ -123,7 +123,12 @@ func (serviceHost *ServiceHost) StartTicker() {
 			}).Info(serviceHost.Rate())
 
 			serviceHost.replicator.SaveBinlogPosition()
-			serviceHost.replicator.store.Commit()
+			err := serviceHost.replicator.store.Commit()
+			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
+				}).Error(err)
+			}
 		}
 	}
 }

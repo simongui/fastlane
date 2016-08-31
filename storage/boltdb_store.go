@@ -52,6 +52,7 @@ func (store *BoltDBStore) Open(filename string) error {
 	if err != nil {
 		return err
 	}
+	store.db.NoSync = true
 
 	// Ensure system bucket is created.
 	store.db.Update(func(tx *bolt.Tx) error {
