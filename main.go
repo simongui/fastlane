@@ -25,6 +25,7 @@ var (
 	verbose            = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
 	httpListenAddress  = kingpin.Flag("http-address", "Address for the HTTP protocol server to listen on.").Default(":8000").String()
 	redisListenAddress = kingpin.Flag("redis-address", "Address for the Redis protocol server to listen on.").Default(":6379").String()
+	store              = kingpin.Flag("store", "Type of storage to use (boltdb or lmdb)").Default("boltdb").String()
 )
 
 func main() {
@@ -62,7 +63,7 @@ func main() {
 	}).Info("process started")
 
 	service = &services.ServiceHost{}
-	go service.ListenAndServe("fastlane.db", *httpListenAddress, *redisListenAddress, mysqlHost, mysqlPort, mysqlUsername, mysqlPassword, 9999)
+	go service.ListenAndServe("fastlane.db", *store, *httpListenAddress, *redisListenAddress, mysqlHost, mysqlPort, mysqlUsername, mysqlPassword, 9999)
 
 	waitGroup.Add(1)
 	waitGroup.Wait()

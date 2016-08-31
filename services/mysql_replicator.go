@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
@@ -21,13 +22,13 @@ type MySQLReplicator struct {
 	username         string
 	password         string
 	serverID         uint32
-	store            *storage.BoltDBStore
+	store            storage.Store
 	jsVirtualMachine *otto.Otto
 	mysqlPosition    mysql.Position
 }
 
 // NewMySQLReplicator Returns a new instance of NewMySQLReplicator.
-func NewMySQLReplicator(serviceHost *ServiceHost, host string, port uint16, username string, password string, serverID uint32, store *storage.BoltDBStore, jsVirtualMachine *otto.Otto) *MySQLReplicator {
+func NewMySQLReplicator(serviceHost *ServiceHost, host string, port uint16, username string, password string, serverID uint32, store storage.Store, jsVirtualMachine *otto.Otto) *MySQLReplicator {
 	replicator := &MySQLReplicator{
 		serviceHost:      serviceHost,
 		host:             host,
@@ -85,11 +86,18 @@ func (replicator *MySQLReplicator) startReplication() {
 	// streamer, _ := syncer.StartSync(mysql.Position{binlogFile, uint32(binlogPos)})
 
 	binlogInfo, err := replicator.store.GetBinlogPosition()
-	if err == nil {
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"prefix":   fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
+			"host":     replicator.host,
+			"port":     replicator.port,
+			"binlog":   replicator.mysqlPosition.Name,
+			"position": replicator.mysqlPosition.Pos,
+		}).Infof(errors.Wrap(err, "failed to get MySQL binlog position. starting from the beginning of the binlog").Error())
+	} else {
 		replicator.mysqlPosition.Name = binlogInfo.File
 		replicator.mysqlPosition.Pos = binlogInfo.Position
 	}
-
 	streamer, _ := syncer.StartSync(replicator.mysqlPosition)
 
 	// or you can start a gtid replication like

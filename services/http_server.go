@@ -11,11 +11,11 @@ import (
 // HTTPServer Represents an instance of the HTTP protocol server.
 type HTTPServer struct {
 	started bool
-	store   *storage.BoltDBStore
+	store   storage.Store
 }
 
 // NewHTTPServer Returns a new HTTPServer instance.
-func NewHTTPServer(store *storage.BoltDBStore) *HTTPServer {
+func NewHTTPServer(store storage.Store) *HTTPServer {
 	server := &HTTPServer{store: store}
 	return server
 }

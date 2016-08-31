@@ -25,3 +25,7 @@ import:
 - package: github.com/tidwall/redcon
 - package: gopkg.in/alecthomas/kingpin.v2
   version: ~2.2.2
+- package: github.com/bmatsuo/lmdb-go
+  version: ~1.6.0
+  subpackages:
+  - lmdb

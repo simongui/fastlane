@@ -12,11 +12,11 @@ import (
 // RedisServer Represents an instance of a redis protocol server.
 type RedisServer struct {
 	started bool
-	store   *storage.BoltDBStore
+	store   storage.Store
 }
 
 // NewRedisServer Returns a new RedisServer instance.
-func NewRedisServer(store *storage.BoltDBStore) *RedisServer {
+func NewRedisServer(store storage.Store) *RedisServer {
 	server := &RedisServer{store: store}
 	return server
 }
@@ -54,7 +54,9 @@ func (server *RedisServer) ListenAndServe(address string) {
 					// mu.Lock()
 					// items[args[1]] = args[2]
 					// mu.Unlock()
-					go server.store.Set([]byte(args[1]), []byte(args[2]))
+					// mu.Lock()
+					server.store.Set([]byte(args[1]), []byte(args[2]))
+					// mu.Unlock()
 					conn.WriteString("OK")
 				case "get":
 					if len(args) != 2 {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/paulbellamy/ratecounter"
+	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 	"github.com/simongui/fastlane/common"
 	"github.com/simongui/fastlane/storage"
@@ -13,7 +14,8 @@ import (
 
 // ServiceHost ServiceHost represents a service instance.
 type ServiceHost struct {
-	store            *storage.BoltDBStore
+	// store            *storage.BoltDBStore
+	store            storage.Store
 	jsVirtualMachine *otto.Otto
 	jsScript         *otto.Script
 	replicator       *MySQLReplicator
@@ -23,10 +25,10 @@ type ServiceHost struct {
 }
 
 // ListenAndServe Starts the service.
-func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, httpListenAddress string, redisListenAddress string, mysqlHost string, mysqlPort uint16, mysqlUsername string, mysqlPassword string, mysqlServerID uint32) error {
+func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, store string, httpListenAddress string, redisListenAddress string, mysqlHost string, mysqlPort uint16, mysqlUsername string, mysqlPassword string, mysqlServerID uint32) error {
 	serviceHost.counter = ratecounter.NewRateCounter(1 * time.Second)
 
-	serviceHost.startStorage(localDatabaseFilename)
+	serviceHost.startStorage(localDatabaseFilename, store)
 	serviceHost.startJavascriptRuntime()
 
 	// Start HTTP protocol server.
@@ -53,13 +55,21 @@ func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, htt
 	return nil
 }
 
-func (serviceHost *ServiceHost) startStorage(filename string) {
-	serviceHost.store = &storage.BoltDBStore{}
+func (serviceHost *ServiceHost) startStorage(filename string, store string) {
+	switch store {
+	case "boltdb":
+		serviceHost.store = &storage.BoltDBStore{}
+	case "lmdb":
+		serviceHost.store = &storage.LMDBStore{}
+	case "rocksdb":
+		// serviceHost.store = &storage.RocksDBStore{}
+	}
+
 	err := serviceHost.store.Open(filename)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-		}).Fatal("unable to open fastlane.db")
+		}).Fatal(errors.Wrap(err, "unable to open "+filename))
 	}
 	logrus.WithFields(logrus.Fields{
 		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
@@ -77,7 +87,7 @@ func (serviceHost *ServiceHost) startJavascriptRuntime() {
 
 }
 
-func (serviceHost *ServiceHost) startReplication(host string, port uint16, username string, password string, serverID uint32, store *storage.BoltDBStore, jsVirtualMachine *otto.Otto) {
+func (serviceHost *ServiceHost) startReplication(host string, port uint16, username string, password string, serverID uint32, store storage.Store, jsVirtualMachine *otto.Otto) {
 	serviceHost.replicator = NewMySQLReplicator(serviceHost, host, port, username, password, serverID, store, jsVirtualMachine)
 	serviceHost.replicator.startReplication()
 }

@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -16,11 +17,12 @@ var binlogPositionKey = []byte("binlogpos")
 
 // BoltDBStore Represents an instance of the BoltDB storage.
 type BoltDBStore struct {
-	started          bool
-	db               *bolt.DB
-	tx               *bolt.Tx
-	writes           chan keyvaluepair
-	resetTransaction bool
+	started bool
+	db      *bolt.DB
+	tx      *bolt.Tx
+	// writes           chan keyvaluepair
+	// resetTransaction bool
+	lock sync.Mutex
 }
 
 // BinlogInformation Represents the information about the MySQL binlog.
@@ -36,14 +38,9 @@ type keyvaluepair struct {
 	value  []byte
 }
 
-// IsStarted Returns whether the BoltDB store is started.
-func (store *BoltDBStore) IsStarted() bool {
-	return store.started
-}
-
 // Open Opens the disk storage.
 func (store *BoltDBStore) Open(filename string) error {
-	store.writes = make(chan keyvaluepair, 10000000)
+	// store.writes = make(chan keyvaluepair, 10000000)
 
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
@@ -69,9 +66,18 @@ func (store *BoltDBStore) Open(filename string) error {
 		return nil
 	})
 
-	go store.handleWrites()
+	// go store.handleWrites()
+	store.tx, err = store.db.Begin(true)
+	if err != nil {
+		return err
+	}
 	store.started = true
 	return nil
+}
+
+// IsStarted Returns whether the BoltDB store is started.
+func (store *BoltDBStore) IsStarted() bool {
+	return store.started
 }
 
 // Close Closes the BoltDB storage.
@@ -81,20 +87,17 @@ func (store *BoltDBStore) Close() {
 
 // GetBinlogPosition Returns the persisted binlog position.
 func (store *BoltDBStore) GetBinlogPosition() (*BinlogInformation, error) {
+	var err error
 	binlogInfo := &BinlogInformation{}
 
-	err := store.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(systemBucketName)
-		file := bucket.Get(binlogFileKey)
-		position := bucket.Get(binlogPositionKey)
+	file, err := store.GetFromBucket(systemBucketName, binlogFileKey)
+	position, err := store.GetFromBucket(systemBucketName, binlogPositionKey)
 
-		if file == nil || position == nil {
-			return errors.New("binlog file and position not found")
-		}
-		binlogInfo.File = string(file)
-		binlogInfo.Position = binary.LittleEndian.Uint32(position)
-		return nil
-	})
+	if file == nil || position == nil {
+		return nil, errors.New("binlog file and position not found")
+	}
+	binlogInfo.File = string(file)
+	binlogInfo.Position = binary.LittleEndian.Uint32(position)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open readonly transaction")
@@ -106,62 +109,30 @@ func (store *BoltDBStore) GetBinlogPosition() (*BinlogInformation, error) {
 func (store *BoltDBStore) SetBinlogPosition(binlogInfo *BinlogInformation) error {
 	fileBuffer := []byte(binlogInfo.File)
 	positionBuffer := make([]byte, 4)
-	// var err error
 
 	binary.LittleEndian.PutUint32(positionBuffer, binlogInfo.Position)
-	write := keyvaluepair{
-		bucket: systemBucketName,
-		key:    fileBuffer,
-		value:  positionBuffer,
+	err := store.Set([]byte(binlogFileKey), fileBuffer)
+	if err != nil {
+		return err
 	}
-	// fmt.Println("SET START")
-	store.writes <- write
-	// fmt.Println("SET END")
-	// store.db.Update(func(tx *bolt.Tx) error {
-	// 	bucket := tx.Bucket(systemBucketName)
-	// 	err = bucket.Put([]byte(binlogFileKey), fileBuffer)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = bucket.Put([]byte(binlogPositionKey), positionBuffer)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	return nil
-	// })
-	return nil
-}
-
-// Commit2 Commits the current transaction.
-func (store *BoltDBStore) Commit2() error {
-	var err error
-
-	if store.tx != nil {
-		// Commit the transaction and check for error.
-		if err = store.tx.Commit(); err != nil {
-			return err
-		}
-
-		// Start a writable transaction.
-		store.tx, err = store.db.Begin(true)
-		if err != nil {
-			return err
-		}
-
-		err = store.db.Sync()
-		if err != nil {
-			return err
-		}
+	err = store.Set([]byte(binlogPositionKey), positionBuffer)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 // Get Gets the value associated with the specified key.
 func (store *BoltDBStore) Get(key []byte) ([]byte, error) {
+	return store.GetFromBucket(dataBucketName, key)
+}
+
+// GetFromBucket Gets the value associated with the specified key from the specified bucket.
+func (store *BoltDBStore) GetFromBucket(bucket []byte, key []byte) ([]byte, error) {
 	var value []byte
 
 	err := store.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(dataBucketName)
+		bucket := tx.Bucket(bucket)
 		value = bucket.Get(key)
 		return nil
 	})
@@ -173,82 +144,37 @@ func (store *BoltDBStore) Get(key []byte) ([]byte, error) {
 
 // Set Sets the specified value associated with the specified key.
 func (store *BoltDBStore) Set(key []byte, value []byte) error {
-	write := keyvaluepair{
-		bucket: dataBucketName,
-		key:    key,
-		value:  value,
-	}
-	store.writes <- write
-	return nil
-
-	// store.db.Update(func(tx *bolt.Tx) error {
-	// err := store.db.Batch(func(tx *bolt.Tx) error {
-	// var err error
-	//
-	// if store.tx == nil {
-	// 	// Start a writable transaction.
-	// 	store.tx, err = store.db.Begin(true)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	//
-	// bucket := store.tx.Bucket(dataBucketName)
-	// err = bucket.Put(key, value)
-	// if err != nil {
-	// 	return err
-	// }
-	// return nil
-	// })
-
-	// if err != nil {
-	// 	return err
-	// }
-	// return nil
+	return store.SetFromBucket(dataBucketName, key, value)
 }
 
-func (store *BoltDBStore) handleWrites() {
-	for {
-		var err error
+// SetFromBucket Sets the specified value associated with the specified key in the specified bucket.
+func (store *BoltDBStore) SetFromBucket(bucket []byte, key []byte, value []byte) error {
+	store.lock.Lock()
 
-		write := <-store.writes
-
-		if store.tx == nil {
-			// Start a writable transaction.
-			store.tx, err = store.db.Begin(true)
-			if err != nil {
-				// return err
-			}
-		} else if store.tx != nil && store.resetTransaction == true {
-			if err = store.tx.Commit(); err != nil {
-				// return err
-			}
-
-			// Start a writable transaction.
-			store.tx, err = store.db.Begin(true)
-			if err != nil {
-				// return err
-			}
-
-			store.resetTransaction = false
-
-			err = store.db.Sync()
-			if err != nil {
-				// return err
-			}
-		}
-
-		// fmt.Printf("%s\t%s\t%d\n", string(write.bucket), string(write.key), binary.LittleEndian.Uint32(write.value))
-
-		bucket := store.tx.Bucket(write.bucket)
-		err = bucket.Put(write.key, write.value)
-		if err != nil {
-			// return err
-		}
+	bkt := store.tx.Bucket(bucket)
+	err := bkt.Put(key, value)
+	if err != nil {
+		return err
 	}
+
+	store.lock.Unlock()
+	return nil
 }
 
 // Commit Commits the current transaction.
 func (store *BoltDBStore) Commit() {
-	store.resetTransaction = true
+	var err error
+	store.lock.Lock()
+	if err = store.tx.Commit(); err != nil {
+		// return err
+	}
+	err = store.db.Sync()
+	if err != nil {
+		// return err
+	}
+	store.tx, err = store.db.Begin(true)
+	if err != nil {
+		// return err
+	}
+	store.lock.Unlock()
 }
