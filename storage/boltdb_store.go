@@ -20,9 +20,7 @@ type BoltDBStore struct {
 	started bool
 	db      *bolt.DB
 	tx      *bolt.Tx
-	// writes           chan keyvaluepair
-	// resetTransaction bool
-	lock sync.Mutex
+	lock    sync.Mutex
 }
 
 // BinlogInformation Represents the information about the MySQL binlog.
@@ -31,18 +29,8 @@ type BinlogInformation struct {
 	Position uint32
 }
 
-// KeyValuePair Represents a key/value pair to be written to storage.
-type keyvaluepair struct {
-	bucket []byte
-	key    []byte
-	value  []byte
-}
-
 // Open Opens the disk storage.
 func (store *BoltDBStore) Open(filename string) error {
-	// store.writes = make(chan keyvaluepair, 10000000)
-
-	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
 	var err error
 	store.db, err = bolt.Open(filename, 0600, &bolt.Options{
@@ -67,7 +55,6 @@ func (store *BoltDBStore) Open(filename string) error {
 		return nil
 	})
 
-	// go store.handleWrites()
 	store.tx, err = store.db.Begin(true)
 	if err != nil {
 		return err

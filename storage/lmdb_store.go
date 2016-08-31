@@ -92,28 +92,12 @@ func (store *LMDBStore) Set(key []byte, value []byte) error {
 	var err error
 	store.lock.Lock()
 
-	// err := store.env.Update(func(txn *lmdb.Txn) (err error) {
-	// open a database, creating it if necessary.  the database is stored
-	// outside the transaction via closure and can be use after the
-	// transaction is committed.
-	// dbi, err = txn.OpenDBI("data", lmdb.Create)
-	// if err != nil {
-	// 	return err
-	// }
-	// store.tx, err = store.env.BeginTxn(nil, 0)
-	store.tx.Put(*store.dbi, key, value, 0)
-
-	// commit the transaction, writing an entry for the newly created
-	// database if it was just created and allowing the dbi to be used in
-	// future transactions.
-	// return nil
-	// })
+	err = store.tx.Put(*store.dbi, key, value, 0)
 	if err != nil {
-		panic(err)
+		store.lock.Unlock()
+		return err
 	}
-
 	store.lock.Unlock()
-
 	return nil
 }
 
@@ -144,27 +128,41 @@ func (store *LMDBStore) GetBinlogPosition() (*BinlogInformation, error) {
 
 // SetBinlogPosition Sets and persists the current binlog position.
 func (store *LMDBStore) SetBinlogPosition(binlogInfo *BinlogInformation) error {
+	var err error
+
 	fileBuffer := []byte(binlogInfo.File)
 	positionBuffer := make([]byte, 4)
 	binary.LittleEndian.PutUint32(positionBuffer, binlogInfo.Position)
 
-	store.Set(binlogFileKey, fileBuffer)
-	store.Set(binlogPositionKey, positionBuffer)
+	err = store.Set(binlogFileKey, fileBuffer)
+	if err != nil {
+		return err
+	}
+	err = store.Set(binlogPositionKey, positionBuffer)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Commit Commits the current write batch.
 func (store *LMDBStore) Commit() error {
 	store.lock.Lock()
+
 	err := store.tx.Commit()
 	if err != nil {
 		return err
 	}
-	store.tx.Reset()
 	err = store.env.Sync(true)
 	if err != nil {
 		return err
 	}
+	// err = store.tx.Renew()
+	store.tx, err = store.env.BeginTxn(nil, 0)
+	if err != nil {
+		return err
+	}
+
 	store.lock.Unlock()
 	return nil
 }
