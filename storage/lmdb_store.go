@@ -117,15 +117,6 @@ func (store *LMDBStore) Set(key []byte, value []byte) error {
 	return nil
 }
 
-// Commit Commits the current write batch.
-func (store *LMDBStore) Commit() {
-	store.lock.Lock()
-	store.tx.Commit()
-	store.tx.Reset()
-	store.env.Sync(true)
-	store.lock.Unlock()
-}
-
 // GetBinlogPosition Returns the persisted binlog position.
 func (store *LMDBStore) GetBinlogPosition() (*BinlogInformation, error) {
 	binlogInfo := &BinlogInformation{}
@@ -159,5 +150,21 @@ func (store *LMDBStore) SetBinlogPosition(binlogInfo *BinlogInformation) error {
 
 	store.Set(binlogFileKey, fileBuffer)
 	store.Set(binlogPositionKey, positionBuffer)
+	return nil
+}
+
+// Commit Commits the current write batch.
+func (store *LMDBStore) Commit() error {
+	store.lock.Lock()
+	err := store.tx.Commit()
+	if err != nil {
+		return err
+	}
+	store.tx.Reset()
+	err = store.env.Sync(true)
+	if err != nil {
+		return err
+	}
+	store.lock.Unlock()
 	return nil
 }
