@@ -8,5 +8,5 @@ type Store interface {
 	SetBinlogPosition(binlogInfo *BinlogInformation) error
 	Get(key []byte) ([]byte, error)
 	Set(key []byte, value []byte) error
-	Commit()
+	Commit() error
 }

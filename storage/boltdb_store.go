@@ -162,19 +162,20 @@ func (store *BoltDBStore) SetFromBucket(bucket []byte, key []byte, value []byte)
 }
 
 // Commit Commits the current transaction.
-func (store *BoltDBStore) Commit() {
+func (store *BoltDBStore) Commit() error {
 	var err error
 	store.lock.Lock()
 	if err = store.tx.Commit(); err != nil {
-		// return err
+		return err
 	}
 	err = store.db.Sync()
 	if err != nil {
-		// return err
+		return err
 	}
 	store.tx, err = store.db.Begin(true)
 	if err != nil {
-		// return err
+		return err
 	}
 	store.lock.Unlock()
+	return nil
 }
