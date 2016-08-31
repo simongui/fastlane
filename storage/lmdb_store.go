@@ -151,15 +151,18 @@ func (store *LMDBStore) Commit() error {
 
 	err := store.tx.Commit()
 	if err != nil {
+		store.lock.Unlock()
 		return err
 	}
 	err = store.env.Sync(true)
 	if err != nil {
+		store.lock.Unlock()
 		return err
 	}
 	// err = store.tx.Renew()
 	store.tx, err = store.env.BeginTxn(nil, 0)
 	if err != nil {
+		store.lock.Unlock()
 		return err
 	}
 
