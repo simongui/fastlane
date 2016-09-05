@@ -1,5 +1,5 @@
-hash: 210955e71cffacfa77b18e8ea68ca2a04025df57edae975ab13ebada961fbfcc
-updated: 2016-09-05T15:04:05.480814546-04:00
+hash: 57f8ebc6a899f1b2f3c6696871e40f0cd701cb0a6d233a4ce71ab479bd7917c5
+updated: 2016-09-05T15:12:13.172674953-04:00
 imports:
 - name: github.com/2tvenom/myreplication
   version: 121f810367d169ec10a1cb385e7dea4ea5493091
@@ -15,6 +15,8 @@ imports:
   - lmdb
 - name: github.com/boltdb/bolt
   version: dfb21201d9270c1082d5fb0f07f500311ff72f18
+- name: github.com/juju/errors
+  version: b2c7a7da5b2995941048f60146e67702a292e468
 - name: github.com/klauspost/compress
   version: 006acde2c5d283d2f8b8aa03d8f0cd2891c680cf
   subpackages:
@@ -42,6 +44,22 @@ imports:
   - parser
   - registry
   - token
+- name: github.com/satori/go.uuid
+  version: f9ab0dce87d815821e221626b772e3475a0d2749
+- name: github.com/siddontang/go
+  version: b151716326d7c7faf22473c0b04fb7ceac88b587
+  subpackages:
+  - hack
+  - ioutil2
+  - log
+  - sync2
+- name: github.com/siddontang/go-mysql
+  version: cceddb4614c966e3a7981bbe82f64ad41c293ee3
+  subpackages:
+  - client
+  - mysql
+  - packet
+  - replication
 - name: github.com/Sirupsen/logrus
   version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
 - name: github.com/tidwall/redcon

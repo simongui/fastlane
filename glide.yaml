@@ -28,3 +28,6 @@ import:
   version: ~1.6.0
   subpackages:
   - lmdb
+- package: github.com/siddontang/go-mysql
+  subpackages:
+  - mysql
