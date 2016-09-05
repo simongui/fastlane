@@ -1,14 +1,12 @@
 package services
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/paulbellamy/ratecounter"
 	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
-	"github.com/simongui/fastlane/common"
 	"github.com/simongui/fastlane/storage"
 )
 
@@ -33,7 +31,6 @@ func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, sto
 
 	// Start HTTP protocol server.
 	logrus.WithFields(logrus.Fields{
-		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
 		"listen": httpListenAddress,
 	}).Info("starting http server")
 	serviceHost.http = NewHTTPServer(serviceHost.store)
@@ -41,7 +38,6 @@ func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, sto
 
 	// Start Redis protocol server.
 	logrus.WithFields(logrus.Fields{
-		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
 		"listen": redisListenAddress,
 	}).Info("starting redis server")
 	serviceHost.redis = NewRedisServer(serviceHost.store)
@@ -67,13 +63,9 @@ func (serviceHost *ServiceHost) startStorage(filename string, store string) {
 
 	err := serviceHost.store.Open(filename)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-		}).Fatal(errors.Wrap(err, "unable to open "+filename))
+		logrus.Fatal(errors.Wrap(err, "unable to open "+filename))
 	}
-	logrus.WithFields(logrus.Fields{
-		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-	}).Info("opened fastlane.db")
+	logrus.Info("opened fastlane.db")
 }
 
 func (serviceHost *ServiceHost) startJavascriptRuntime() {
@@ -81,10 +73,7 @@ func (serviceHost *ServiceHost) startJavascriptRuntime() {
 	serviceHost.jsScript, _ = serviceHost.jsVirtualMachine.Compile("example.js", nil)
 	serviceHost.jsVirtualMachine.Run(serviceHost.jsScript)
 
-	logrus.WithFields(logrus.Fields{
-		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-	}).Info("started javascript runtime")
-
+	logrus.Info("started javascript runtime")
 }
 
 func (serviceHost *ServiceHost) startReplication(host string, port uint16, username string, password string, serverID uint32, store storage.Store, jsVirtualMachine *otto.Otto) {
@@ -118,16 +107,12 @@ func (serviceHost *ServiceHost) StartTicker() {
 	ticker := time.NewTicker(time.Second * 1)
 	for range ticker.C {
 		if serviceHost.IsStarted() {
-			logrus.WithFields(logrus.Fields{
-				"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-			}).Info(serviceHost.Rate())
+			logrus.Info(serviceHost.Rate())
 
 			serviceHost.replicator.SaveBinlogPosition()
 			err := serviceHost.replicator.store.Commit()
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-				}).Error(err)
+				logrus.Error(err)
 			}
 		}
 	}

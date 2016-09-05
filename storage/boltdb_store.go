@@ -75,22 +75,21 @@ func (store *BoltDBStore) Close() {
 
 // GetBinlogPosition Returns the persisted binlog position.
 func (store *BoltDBStore) GetBinlogPosition() (*BinlogInformation, error) {
-	var err error
-	binlogInfo := &BinlogInformation{}
-
 	file, err := store.GetFromBucket(systemBucketName, binlogFileKey)
-	position, err := store.GetFromBucket(systemBucketName, binlogPositionKey)
-
-	if file == nil || position == nil {
-		return nil, errors.New("binlog file and position not found")
-	}
-	binlogInfo.File = string(file)
-	binlogInfo.Position = binary.LittleEndian.Uint32(position)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open readonly transaction")
 	}
-	return binlogInfo, nil
+
+	position, err := store.GetFromBucket(systemBucketName, binlogPositionKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to open readonly transaction")
+	}
+
+	if file == nil || position == nil {
+		return nil, errors.New("binlog file or position not found")
+	}
+
+	return &BinlogInformation{File: string(file), Position: binary.LittleEndian.Uint32(position)}, nil
 }
 
 // SetBinlogPosition Sets and persists the current binlog position.
@@ -154,14 +153,17 @@ func (store *BoltDBStore) Commit() error {
 	var err error
 	store.lock.Lock()
 	if err = store.tx.Commit(); err != nil {
+		store.lock.Unlock()
 		return err
 	}
 	err = store.db.Sync()
 	if err != nil {
+		store.lock.Unlock()
 		return err
 	}
 	store.tx, err = store.db.Begin(true)
 	if err != nil {
+		store.lock.Unlock()
 		return err
 	}
 	store.lock.Unlock()

@@ -1,5 +1,5 @@
-hash: f07e3afe666d3a7e536ef6e8ca1744eb9ffb548a3778c3b392238e1e906e70af
-updated: 2016-08-28T01:43:34.330939294-04:00
+hash: 210955e71cffacfa77b18e8ea68ca2a04025df57edae975ab13ebada961fbfcc
+updated: 2016-09-05T15:04:05.480814546-04:00
 imports:
 - name: github.com/2tvenom/myreplication
   version: 121f810367d169ec10a1cb385e7dea4ea5493091
@@ -50,14 +50,12 @@ imports:
   version: d42167fd04f636e20b005e9934159e95454233c7
   subpackages:
   - fasthttputil
-- name: github.com/x-cray/logrus-prefixed-formatter
-  version: 78e945f7d6bfe5a81ce6121d92d8118e44303e58
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e5900212cbf65b181d3d8e08308ef06a01d117cf
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
 - name: gopkg.in/sourcemap.v1
   version: 8cd1e2e0ddc78dcb4511bcb184d23171bed15c67
   subpackages:

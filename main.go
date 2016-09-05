@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/simongui/fastlane/common"
+	"github.com/rifflock/lfshook"
+	"github.com/simongui/fastlane/logging"
 	"github.com/simongui/fastlane/services"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var (
@@ -23,10 +22,11 @@ var (
 
 var (
 	verbose            = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+	logpath            = kingpin.Flag("logpath", "Where to store the log files").String()
 	httpListenAddress  = kingpin.Flag("http-address", "Address for the HTTP protocol server to listen on.").Default(":8000").String()
 	redisListenAddress = kingpin.Flag("redis-address", "Address for the Redis protocol server to listen on.").Default(":6379").String()
 	store              = kingpin.Flag("store", "Type of storage to use (boltdb or lmdb)").Default("boltdb").String()
-	path               = kingpin.Flag("path", "Where to store the database files").Default("fastlane.db").String()
+	dbpath             = kingpin.Flag("dbpath", "Where to store the database files").Default("fastlane.db").String()
 )
 
 func main() {
@@ -48,23 +48,26 @@ func main() {
 
 	kingpin.Parse()
 
-	logrus.SetFormatter(new(prefixed.TextFormatter))
+	if *verbose {
+		logrus.AddHook(logging.ContextHook{})
+	}
 
-	// logrus.StandardLogger().Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-	// 	logrus.InfoLevel:  "/var/log/fastlane.log",
-	// 	logrus.WarnLevel:  "/var/log/fastlane.log",
-	// 	logrus.ErrorLevel: "/var/log/fastlane.log",
-	// 	logrus.DebugLevel: "/var/log/fastlane.log",
-	// 	logrus.FatalLevel: "/var/log/fastlane.log",
-	// 	logrus.PanicLevel: "/var/log/fastlane.log",
-	// }))
+	// Write log entries to a file on disk if enabled.
+	if logpath != nil {
+		logrus.StandardLogger().Hooks.Add(lfshook.NewHook(lfshook.PathMap{
+			logrus.InfoLevel:  "/var/log/fastlane.log",
+			logrus.WarnLevel:  "/var/log/fastlane.log",
+			logrus.ErrorLevel: "/var/log/fastlane.log",
+			logrus.DebugLevel: "/var/log/fastlane.log",
+			logrus.FatalLevel: "/var/log/fastlane.log",
+			logrus.PanicLevel: "/var/log/fastlane.log",
+		}))
+	}
 
-	logrus.WithFields(logrus.Fields{
-		"prefix": fmt.Sprintf("%s.%s:%d", common.GetCallInfo().PackageName, common.GetCallInfo().FuncName, common.GetCallInfo().Line),
-	}).Info("process started")
+	logrus.Info("process started")
 
 	service = &services.ServiceHost{}
-	go service.ListenAndServe(*path, *store, *httpListenAddress, *redisListenAddress, mysqlHost, mysqlPort, mysqlUsername, mysqlPassword, 9999)
+	go service.ListenAndServe(*dbpath, *store, *httpListenAddress, *redisListenAddress, mysqlHost, mysqlPort, mysqlUsername, mysqlPassword, 9999)
 
 	waitGroup.Add(1)
 	waitGroup.Wait()
