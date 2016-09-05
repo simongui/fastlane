@@ -53,14 +53,14 @@ func main() {
 	}
 
 	// Write log entries to a file on disk if enabled.
-	if logpath != nil {
+	if *logpath != "" {
 		logrus.StandardLogger().Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-			logrus.InfoLevel:  "/var/log/fastlane.log",
-			logrus.WarnLevel:  "/var/log/fastlane.log",
-			logrus.ErrorLevel: "/var/log/fastlane.log",
-			logrus.DebugLevel: "/var/log/fastlane.log",
-			logrus.FatalLevel: "/var/log/fastlane.log",
-			logrus.PanicLevel: "/var/log/fastlane.log",
+			logrus.InfoLevel:  *logpath,
+			logrus.WarnLevel:  *logpath,
+			logrus.ErrorLevel: *logpath,
+			logrus.DebugLevel: *logpath,
+			logrus.FatalLevel: *logpath,
+			logrus.PanicLevel: *logpath,
 		}))
 	}
 
