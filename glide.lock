@@ -1,5 +1,5 @@
-hash: 35be51fdbc088c71a51687f29b0a6bbfd7d7dc88f021719c64fce4fd9d86abd9
-updated: 2016-08-16T14:48:39.836977715-04:00
+hash: 57f8ebc6a899f1b2f3c6696871e40f0cd701cb0a6d233a4ce71ab479bd7917c5
+updated: 2016-09-05T15:12:13.172674953-04:00
 imports:
 - name: github.com/2tvenom/myreplication
   version: 121f810367d169ec10a1cb385e7dea4ea5493091
@@ -9,6 +9,10 @@ imports:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/bmatsuo/lmdb-go
+  version: c0fb0ab7ed3c614e336de8536521c2b4c10002b5
+  subpackages:
+  - lmdb
 - name: github.com/boltdb/bolt
   version: dfb21201d9270c1082d5fb0f07f500311ff72f18
 - name: github.com/juju/errors
@@ -28,7 +32,7 @@ imports:
 - name: github.com/paulbellamy/ratecounter
   version: 5a11f585a31379765c190c033b6ad39956584447
 - name: github.com/pkg/errors
-  version: 01fa4104b9c248c8945d14d9f128454d5b28d595
+  version: 17b591df37844cde689f4d5813e5cea0927d8dd2
 - name: github.com/rifflock/lfshook
   version: f9d14dda07b109a7aa56f135c31b34062eb14392
 - name: github.com/robertkrimen/otto
@@ -64,14 +68,12 @@ imports:
   version: d42167fd04f636e20b005e9934159e95454233c7
   subpackages:
   - fasthttputil
-- name: github.com/x-cray/logrus-prefixed-formatter
-  version: 78e945f7d6bfe5a81ce6121d92d8118e44303e58
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e5900212cbf65b181d3d8e08308ef06a01d117cf
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
 - name: gopkg.in/sourcemap.v1
   version: 8cd1e2e0ddc78dcb4511bcb184d23171bed15c67
   subpackages:

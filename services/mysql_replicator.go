@@ -1,10 +1,12 @@
-package main
+package services
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
+	"github.com/robertkrimen/otto"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/simongui/fastlane/storage"
@@ -12,19 +14,37 @@ import (
 
 // MySQLReplicator Represents an instance of a MySQL replication client.
 type MySQLReplicator struct {
-	serverID      uint32
-	store         *storage.BoltDBStore
-	mysqlPosition mysql.Position
+	serviceHost      *ServiceHost
+	started          bool
+	host             string
+	port             uint16
+	username         string
+	password         string
+	serverID         uint32
+	store            storage.Store
+	jsVirtualMachine *otto.Otto
+	mysqlPosition    mysql.Position
 }
 
 // NewMySQLReplicator Returns a new instance of NewMySQLReplicator.
-func NewMySQLReplicator(serverID uint32, store *storage.BoltDBStore) *MySQLReplicator {
+func NewMySQLReplicator(serviceHost *ServiceHost, host string, port uint16, username string, password string, serverID uint32, store storage.Store, jsVirtualMachine *otto.Otto) *MySQLReplicator {
 	replicator := &MySQLReplicator{
-		serverID:      serverID,
-		store:         store,
-		mysqlPosition: mysql.Position{},
+		serviceHost:      serviceHost,
+		host:             host,
+		port:             port,
+		username:         username,
+		password:         password,
+		serverID:         serverID,
+		store:            store,
+		jsVirtualMachine: jsVirtualMachine,
+		mysqlPosition:    mysql.Position{},
 	}
 	return replicator
+}
+
+// IsStarted Returns whether the MySQL replication service is started.
+func (replicator *MySQLReplicator) IsStarted() bool {
+	return replicator.started
 }
 
 func (replicator *MySQLReplicator) startReplication() {
@@ -33,11 +53,9 @@ func (replicator *MySQLReplicator) startReplication() {
 	syncer := replication.NewBinlogSyncer(replicator.serverID, "mysql")
 
 	// Register slave, the MySQL master is at 127.0.0.1:3306, with user root and an empty password
-	err := syncer.RegisterSlave(host, uint16(port), username, password)
+	err := syncer.RegisterSlave(replicator.host, replicator.port, replicator.username, replicator.password)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"prefix": fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-		}).Panic("can't start binlog" + err.Error())
+		logrus.Panic("can't start binlog" + err.Error())
 	}
 
 	// server := failover.NewServer(host+":"+strconv.Itoa(port), failover.User{Name: "root", Password: password}, failover.User{Name: username, Password: password})
@@ -65,11 +83,17 @@ func (replicator *MySQLReplicator) startReplication() {
 	// streamer, _ := syncer.StartSync(mysql.Position{binlogFile, uint32(binlogPos)})
 
 	binlogInfo, err := replicator.store.GetBinlogPosition()
-	if err == nil {
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"host":       replicator.host,
+			"port":       replicator.port,
+			"binlogfile": replicator.mysqlPosition.Name,
+			"binlogpos":  replicator.mysqlPosition.Pos,
+		}).Infof(errors.Wrap(err, "failed to get MySQL binlog position. starting from the beginning of the binlog").Error())
+	} else {
 		replicator.mysqlPosition.Name = binlogInfo.File
 		replicator.mysqlPosition.Pos = binlogInfo.Position
 	}
-
 	streamer, _ := syncer.StartSync(replicator.mysqlPosition)
 
 	// or you can start a gtid replication like
@@ -78,48 +102,42 @@ func (replicator *MySQLReplicator) startReplication() {
 	// the mariadb GTID set likes this "0-1-100"
 
 	logrus.WithFields(logrus.Fields{
-		"prefix":   fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-		"host":     host,
-		"port":     port,
-		"binlog":   replicator.mysqlPosition.Name,
-		"position": replicator.mysqlPosition.Pos,
+		"host":       replicator.host,
+		"port":       replicator.port,
+		"binlogfile": replicator.mysqlPosition.Name,
+		"binlogpos":  replicator.mysqlPosition.Pos,
 	}).Infof("started mysql replication link")
 
 	for {
 		ev, _ := streamer.GetEvent()
 		if ev == nil {
 			logrus.WithFields(logrus.Fields{
-				"prefix":   fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-				"host":     host,
-				"port":     port,
-				"binlog":   replicator.mysqlPosition.Name,
-				"position": replicator.mysqlPosition.Pos,
+				"host":       replicator.host,
+				"port":       replicator.port,
+				"binlogfile": replicator.mysqlPosition.Name,
+				"binlogpos":  replicator.mysqlPosition.Pos,
 			}).Fatalf("unable to stream from binlog")
 		}
-		_, err = vm.Call("handleEvent", nil, ev.Event, strings.ToLower(ev.Header.EventType.String()))
+		_, err = replicator.jsVirtualMachine.Call("handleEvent", nil, ev.Event, strings.ToLower(ev.Header.EventType.String()))
 		if err != nil {
 			fmt.Println(err)
 		}
 		// runScript(ev)
 
 		switch e := ev.Event.(type) {
-		case *replication.QueryEvent:
-			// fmt.Println(string(e.Query))
-			// os.Exit(0)
 		case *replication.RotateEvent:
 			replicator.mysqlPosition.Name = string(e.NextLogName)
 			replicator.mysqlPosition.Pos = uint32(e.Position)
 
 			logrus.WithFields(logrus.Fields{
-				"prefix":   fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-				"file":     replicator.mysqlPosition.Name,
-				"position": replicator.mysqlPosition.Pos,
+				"binlogfile": replicator.mysqlPosition.Name,
+				"binlogpos":  replicator.mysqlPosition.Pos,
 			}).Infof("mysql binlog rotated")
 		default:
+			replicator.started = true
 			replicator.mysqlPosition.Pos = ev.Header.LogPos
 		}
-
-		counter.Incr(1)
+		replicator.serviceHost.Increment(1)
 	}
 }
 
@@ -131,15 +149,13 @@ func (replicator *MySQLReplicator) SaveBinlogPosition() {
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"prefix":   fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-			"file":     replicator.mysqlPosition.Name,
-			"position": replicator.mysqlPosition.Pos,
+			"binlogfile": replicator.mysqlPosition.Name,
+			"binlogpos":  replicator.mysqlPosition.Pos,
 		}).Infof("failed to save mysql binlog position")
 	} else {
 		logrus.WithFields(logrus.Fields{
-			"prefix":   fmt.Sprintf("%s.%s:%d", GetCallInfo().packageName, GetCallInfo().funcName, GetCallInfo().line),
-			"file":     replicator.mysqlPosition.Name,
-			"position": replicator.mysqlPosition.Pos,
+			"binlogfile": replicator.mysqlPosition.Name,
+			"binlogpos":  replicator.mysqlPosition.Pos,
 		}).Infof("saved mysql binlog position")
 	}
 }

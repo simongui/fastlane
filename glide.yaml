@@ -5,7 +5,6 @@ import:
   version: ~0.10.0
 - package: github.com/rifflock/lfshook
   version: ~1.1.0
-- package: github.com/x-cray/logrus-prefixed-formatter
 - package: github.com/mgutz/ansi
 - package: github.com/robertkrimen/otto
 - package: gopkg.in/sourcemap.v1
@@ -25,3 +24,10 @@ import:
 - package: github.com/tidwall/redcon
 - package: gopkg.in/alecthomas/kingpin.v2
   version: ~2.2.2
+- package: github.com/bmatsuo/lmdb-go
+  version: ~1.6.0
+  subpackages:
+  - lmdb
+- package: github.com/siddontang/go-mysql
+  subpackages:
+  - mysql
