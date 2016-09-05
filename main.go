@@ -25,7 +25,7 @@ var (
 	logpath            = kingpin.Flag("logpath", "Where to store the log files").String()
 	httpListenAddress  = kingpin.Flag("http-address", "Address for the HTTP protocol server to listen on.").Default(":8000").String()
 	redisListenAddress = kingpin.Flag("redis-address", "Address for the Redis protocol server to listen on.").Default(":6379").String()
-	store              = kingpin.Flag("store", "Type of storage to use (boltdb or lmdb)").Default("boltdb").String()
+	store              = kingpin.Flag("store", "Type of storage to use (map (in-memory), boltdb or lmdb)").Default("boltdb").String()
 	dbpath             = kingpin.Flag("dbpath", "Where to store the database files").Default("fastlane.db").String()
 )
 
