@@ -53,6 +53,8 @@ func (serviceHost *ServiceHost) ListenAndServe(localDatabaseFilename string, sto
 
 func (serviceHost *ServiceHost) startStorage(filename string, store string) {
 	switch store {
+	case "noop":
+		serviceHost.store = &storage.NoopStore{}
 	case "map":
 		serviceHost.store = &storage.MapStore{}
 	case "boltdb":
